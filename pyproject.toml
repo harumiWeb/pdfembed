@@ -1,0 +1,24 @@
+[project]
+name = "pdfembed"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "harumiWeb", email = "ganaharumi@outlook.jp" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26.4",
+    "onnxocr>=2025.5",
+    "opencv-python>=4.11.0.86",
+    "pypdf>=6.4.0",
+    "pypdfium2>=5.1.0",
+    "reportlab>=4.4.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"
+
+[project.scripts]
+pdfembed = "pdfembed.cli:main"
