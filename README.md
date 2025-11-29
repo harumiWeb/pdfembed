@@ -1,6 +1,6 @@
 ## pdfembed
 
-![preview]("https://github.com/user-attachments/assets/0610ecf0-fec0-4657-abe5-c4387a91bbae")
+<img width="1077" height="610" alt="Image" src="https://github.com/user-attachments/assets/0610ecf0-fec0-4657-abe5-c4387a91bbae" />
 
 ---
 
