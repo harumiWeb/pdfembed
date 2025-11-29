@@ -14,6 +14,7 @@ dependencies = [
     "pypdf>=6.4.0",
     "pypdfium2>=5.1.0",
     "reportlab>=4.4.5",
+    "textual>=6.6.0",
 ]
 
 [build-system]

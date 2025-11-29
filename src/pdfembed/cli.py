@@ -22,8 +22,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from tkinter import filedialog
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
-from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Log
+from textual.containers import Container
+from textual.widgets import Footer, Header, Label, Log
 
 DEFAULT_FONT_PATH = Path(__file__).resolve().parent.parent / "fonts" / "ipaexg.ttf"
 
@@ -496,8 +496,8 @@ class PDFEmbedTUI(App):
         border: tall $background 80%;
         padding: 1 1;
     }
-    Button {
-        width: 28;
+    #status {
+        padding: 0 1;
     }
     """
 
@@ -506,6 +506,7 @@ class PDFEmbedTUI(App):
         ("f", "select_files", "Select files"),
         ("o", "select_output", "Select output"),
         ("s", "start_ocr", "Start OCR"),
+        ("v", "toggle_visible", "Toggle visible text"),
     ]
 
     def __init__(self, font_path: Path, **kwargs):
@@ -521,30 +522,18 @@ class PDFEmbedTUI(App):
         with Container():
             yield Label("PDF Embed OCR", id="title")
             with Container(id="controls"):
-                yield Button("📂 Select PDF(s) [F]", id="select_files")
-                yield Button("🗂 Select output folder [O]", id="select_output")
-                yield Horizontal(
-                    Label("DPI:", classes="compact"),
-                    Input(str(self.dpi), id="dpi_input", placeholder="300", restrict=r"[0-9]+"),
-                    classes="row",
-                )
-                yield Checkbox("Show overlay text (debug)", id="visible_checkbox")
-                yield Button("▶️ Start OCR [S]", id="start")
-            yield Label("Selected files:", id="files_label")
+                yield Label(f"DPI: {self.dpi} (change with --cli option)", id="dpi_label")
+                yield Label("Visible text: OFF [V]", id="visible_status")
+            yield Label("Selected files (F: choose, O: output, S: start):", id="files_label")
             yield Log(id="log")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one(Log).write_line("Select PDFs to begin.")
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        button_id = event.button.id
-        if button_id == "select_files":
-            await self._select_files()
-        elif button_id == "select_output":
-            await self._select_output_dir()
-        elif button_id == "start":
-            await self._start_ocr()
+        self.query_one(Log).write_line(
+            "F: select PDF(s), O: select output, V: toggle visible, S: start, Q: quit (DPI is fixed in TUI)"
+        )
+        self._update_visible_label()
+        self._update_status_label()
 
     async def action_select_files(self) -> None:
         await self._select_files()
@@ -555,35 +544,41 @@ class PDFEmbedTUI(App):
     async def action_start_ocr(self) -> None:
         await self._start_ocr()
 
+    async def action_toggle_visible(self) -> None:
+        self.visible = not self.visible
+        self._update_visible_label()
+
     async def _select_files(self) -> None:
         log = self.query_one(Log)
-        log.write_line("… ファイルダイアログを開いています")
+        log.write_line("? Opening file dialog")
         try:
             paths = await asyncio.to_thread(self._open_file_dialog)
         except Exception as e:
-            log.write_line(f"✖️ ファイルダイアログの起動に失敗: {e}")
+            log.write_line(f"?? Failed to open file dialog: {e}")
             return
         if not paths:
-            log.write_line("⚠️ 選択がキャンセルされました。")
+            log.write_line("?? Selection was cancelled.")
             return
         self.selected_files = [Path(p).resolve() for p in paths]
         log.clear()
         for p in self.selected_files:
-            log.write_line(f"✔ Selected: {p}")
+            log.write_line(f"? Selected: {p}")
+        self._update_status_label()
 
     async def _select_output_dir(self) -> None:
         log = self.query_one(Log)
-        log.write_line("… 出力フォルダ選択ダイアログを開いています")
+        log.write_line("? Opening output folder dialog")
         try:
             selected = await asyncio.to_thread(self._open_dir_dialog)
         except Exception as e:
-            log.write_line(f"✖️ フォルダ選択の起動に失敗: {e}")
+            log.write_line(f"?? Failed to open folder dialog: {e}")
             return
         if selected:
             self.output_dir = Path(selected).resolve()
             log.write_line(f"Output: {self.output_dir}")
         else:
-            log.write_line("⚠️ 選択がキャンセルされました。")
+            log.write_line("?? Selection was cancelled.")
+        self._update_status_label()
 
     def _open_file_dialog(self):
         root = tk.Tk()
@@ -604,13 +599,7 @@ class PDFEmbedTUI(App):
 
     async def _start_ocr(self) -> None:
         log = self.query_one(Log)
-        dpi_input = self.query_one("#dpi_input", Input).value or "300"
-        try:
-            self.dpi = max(72, int(dpi_input))
-        except ValueError:
-            log.write_line("⚠️ DPI must be a number.")
-            return
-        self.visible = self.query_one("#visible_checkbox", Checkbox).value
+        # DPIはTUIでは固定（--cliのみ変更可）
 
         if not self.selected_files:
             log.write_line("⚠️ No PDFs selected.")
@@ -641,9 +630,21 @@ class PDFEmbedTUI(App):
             log.write_line(f"✅ Success: {len(result.completed)} file(s)")
             for p in result.completed:
                 log.write_line(f"  - {p}")
+        self._update_status_label()
 
     def action_quit(self) -> None:
         self.exit()
+
+    def _update_visible_label(self) -> None:
+        label = self.query_one("#visible_status", Label)
+        state = "ON" if self.visible else "OFF"
+        label.update(f"Visible text: {state} [V]")
+
+    def _update_status_label(self) -> None:
+        files_count = len(self.selected_files)
+        output_dir = self.output_dir or (self.selected_files[0].parent if self.selected_files else Path("-"))
+        status = f"Files: {files_count} | Output: {output_dir}"
+        self.query_one("#files_label", Label).update(status)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
