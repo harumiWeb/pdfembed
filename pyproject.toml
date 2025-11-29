@@ -1,6 +1,6 @@
 [project]
 name = "pdfembed"
-version = "0.1.2"
+version = "0.1.3"
 description = "CLI/TUI tool to run OCR locally and overlay a searchable text layer on PDFs."
 readme = "README.md"
 authors = [

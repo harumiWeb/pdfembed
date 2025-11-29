@@ -25,7 +25,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.widgets import Footer, Header, Label, Log
 
-DEFAULT_FONT_PATH = Path(__file__).resolve().parent.parent / "fonts" / "ipaexg.ttf"
+DEFAULT_FONT_PATH = Path(__file__).resolve().parent / "fonts" / "ipaexg.ttf"
 
 
 @dataclass
