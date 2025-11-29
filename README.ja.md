@@ -1,5 +1,7 @@
 ## pdfembed
 
+<img width="1077" height="610" alt="Image" src="https://github.com/user-attachments/assets/0610ecf0-fec0-4657-abe5-c4387a91bbae" />
+
 ローカルでPDFをOCRし、テキストレイヤーを重ねて検索可能なPDFを作成するツールです。既定ではTextualベースのTUIが起動します。従来のCLIを使う場合は `--cli` を付けてください。
 
 ライセンス: BSD-3-Clause（`LICENSE` を参照）
