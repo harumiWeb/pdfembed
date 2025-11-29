@@ -507,7 +507,6 @@ class PDFEmbedTUI(App):
         ("o", "select_output", "Select output"),
         ("s", "start_ocr", "Start OCR"),
         ("v", "toggle_visible", "Toggle visible text"),
-        ("l", "toggle_language", "Switch language"),
     ]
 
     def __init__(self, font_path: Path, **kwargs):
@@ -517,66 +516,24 @@ class PDFEmbedTUI(App):
         self.font_path = font_path
         self.visible = False
         self.dpi = 300
-        self.language = "en"
-        self.messages = {
-            "en": {
-                "help": "F: select PDF(s), O: select output, V: toggle visible, L: switch language, S: start, Q: quit (DPI is fixed in TUI)",
-                "dpi_label": "DPI: {dpi} (change with --cli option)",
-                "visible_on": "Visible text: ON [V]",
-                "visible_off": "Visible text: OFF [V]",
-                "selected_label": "Selected files (F: choose, O: output, S: start, L: lang):",
-                "opening_file": "? Opening file dialog",
-                "file_fail": "?? Failed to open file dialog: {error}",
-                "file_cancel": "?? Selection was cancelled.",
-                "opening_dir": "? Opening output folder dialog",
-                "dir_fail": "?? Failed to open folder dialog: {error}",
-                "dir_cancel": "?? Selection was cancelled.",
-                "output_set": "Output: {path}",
-                "start": "?? Start (DPI={dpi}, visible={visible})",
-                "no_pdfs": "?? No PDFs selected.",
-                "failed": "?? Failed: {count} file(s)",
-                "success": "? Success: {count} file(s)",
-                "status": "Files: {count} | Output: {output}",
-                "lang_switched": "Language switched to English.",
-            },
-            "ja": {
-                "help": "F: PDF??, O: ???, V: ?????, L: ????, S: ??, Q: ???DPI?TUI?????",
-                "dpi_label": "DPI: {dpi}???? --cli ???",
-                "visible_on": "???????: ON [V]",
-                "visible_off": "???????: OFF [V]",
-                "selected_label": "?????? (F: ??, O: ??, S: ??, L: ??):",
-                "opening_file": "? ????????????????",
-                "file_fail": "?? ???????????????: {error}",
-                "file_cancel": "?? ??????????????",
-                "opening_dir": "? ??????????????????",
-                "dir_fail": "?? ???????????????: {error}",
-                "dir_cancel": "?? ??????????????",
-                "output_set": "???: {path}",
-                "start": "?? ?? (DPI={dpi}, visible={visible})",
-                "no_pdfs": "?? PDF???????????",
-                "failed": "?? ??: {count} ?",
-                "success": "? ??: {count} ?",
-                "status": "?????: {count} | ???: {output}",
-                "lang_switched": "???????????????",
-            },
-        }
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Container():
             yield Label("PDF Embed OCR", id="title")
             with Container(id="controls"):
-                yield Label("", id="dpi_label")
-                yield Label("", id="visible_status")
-            yield Label("", id="files_label")
+                yield Label(f"DPI: {self.dpi} (change with --cli option)", id="dpi_label")
+                yield Label("Visible text: OFF [V]", id="visible_status")
+            yield Label("Selected files (F: choose, O: output, S: start):", id="files_label")
             yield Log(id="log")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one(Log).write_line(self._t("help"))
+        self.query_one(Log).write_line(
+            "F: select PDF(s), O: select output, V: toggle visible, S: start, Q: quit (DPI is fixed in TUI)"
+        )
         self._update_visible_label()
         self._update_status_label()
-        self._update_dpi_label()
 
     async def action_select_files(self) -> None:
         await self._select_files()
@@ -591,44 +548,36 @@ class PDFEmbedTUI(App):
         self.visible = not self.visible
         self._update_visible_label()
 
-    async def action_toggle_language(self) -> None:
-        self.language = "ja" if self.language == "en" else "en"
-        self.query_one(Log).write_line(self._t("lang_switched"))
-        self._update_visible_label()
-        self._update_status_label()
-        self._update_dpi_label()
-        self.query_one(Log).write_line(self._t("help"))
-
     async def _select_files(self) -> None:
         log = self.query_one(Log)
-        log.write_line(self._t("opening_file"))
+        log.write_line("? Opening file dialog")
         try:
             paths = await asyncio.to_thread(self._open_file_dialog)
         except Exception as e:
-            log.write_line(self._t("file_fail").format(error=e))
+            log.write_line(f"?? Failed to open file dialog: {e}")
             return
         if not paths:
-            log.write_line(self._t("file_cancel"))
+            log.write_line("?? Selection was cancelled.")
             return
         self.selected_files = [Path(p).resolve() for p in paths]
         log.clear()
         for p in self.selected_files:
-            log.write_line(f"? {p}")
+            log.write_line(f"? Selected: {p}")
         self._update_status_label()
 
     async def _select_output_dir(self) -> None:
         log = self.query_one(Log)
-        log.write_line(self._t("opening_dir"))
+        log.write_line("? Opening output folder dialog")
         try:
             selected = await asyncio.to_thread(self._open_dir_dialog)
         except Exception as e:
-            log.write_line(self._t("dir_fail").format(error=e))
+            log.write_line(f"?? Failed to open folder dialog: {e}")
             return
         if selected:
             self.output_dir = Path(selected).resolve()
-            log.write_line(self._t("output_set").format(path=self.output_dir))
+            log.write_line(f"Output: {self.output_dir}")
         else:
-            log.write_line(self._t("dir_cancel"))
+            log.write_line("?? Selection was cancelled.")
         self._update_status_label()
 
     def _open_file_dialog(self):
@@ -653,14 +602,14 @@ class PDFEmbedTUI(App):
         # DPI is fixed in TUI (change via --cli)
 
         if not self.selected_files:
-            log.write_line(self._t("no_pdfs"))
+            log.write_line("?? No PDFs selected.")
             return
 
         output_dir = self.output_dir or self.selected_files[0].parent
         output_dir.mkdir(parents=True, exist_ok=True)
         font_path = resolve_font_path(str(self.font_path))
 
-        log.write_line(self._t("start").format(dpi=self.dpi, visible=self.visible))
+        log.write_line(f"?? Start (DPI={self.dpi}, visible={self.visible})")
 
         def run_batch():
             return process_multiple_pdfs(
@@ -674,11 +623,11 @@ class PDFEmbedTUI(App):
         result = await asyncio.to_thread(run_batch)
 
         if result.failed:
-            log.write_line(self._t("failed").format(count=len(result.failed)))
+            log.write_line(f"?? Failed: {len(result.failed)} file(s)")
             for ip, msg in result.failed:
                 log.write_line(f"  - {ip} -> {msg}")
         if result.completed:
-            log.write_line(self._t("success").format(count=len(result.completed)))
+            log.write_line(f"? Success: {len(result.completed)} file(s)")
             for p in result.completed:
                 log.write_line(f"  - {p}")
         self._update_status_label()
@@ -688,20 +637,14 @@ class PDFEmbedTUI(App):
 
     def _update_visible_label(self) -> None:
         label = self.query_one("#visible_status", Label)
-        label.update(self._t("visible_on") if self.visible else self._t("visible_off"))
+        state = "ON" if self.visible else "OFF"
+        label.update(f"Visible text: {state} [V]")
 
     def _update_status_label(self) -> None:
         files_count = len(self.selected_files)
         output_dir = self.output_dir or (self.selected_files[0].parent if self.selected_files else Path("-"))
-        status = self._t("status").format(count=files_count, output=output_dir)
+        status = f"Files: {files_count} | Output: {output_dir}"
         self.query_one("#files_label", Label).update(status)
-
-    def _update_dpi_label(self) -> None:
-        self.query_one("#dpi_label", Label).update(self._t("dpi_label").format(dpi=self.dpi))
-
-    def _t(self, key: str) -> str:
-        return self.messages.get(self.language, self.messages["en"]).get(key, key)
-
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
