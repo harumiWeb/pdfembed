@@ -2,6 +2,8 @@
 
 <img width="1077" height="610" alt="Image" src="https://github.com/user-attachments/assets/0610ecf0-fec0-4657-abe5-c4387a91bbae" />
 
+---
+
 CLI/TUI tool to run OCR locally and overlay a searchable text layer on PDFs. By default, a Textual-based TUI launches; use `--cli` for the classic CLI.
 
 License: BSD-3-Clause (see `LICENSE`).
