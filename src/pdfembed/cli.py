@@ -377,11 +377,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def configure_logging(level: str) -> None:
     class ColorFormatter(logging.Formatter):
         ICONS = {
-            logging.DEBUG: "屏 ",
-            logging.INFO: "邃ｹ・・",
-            logging.WARNING: "笞・・",
-            logging.ERROR: "笨厄ｸ・",
-            logging.CRITICAL: "徴 ",
+            logging.DEBUG: "[DEBUG] ",
+            logging.INFO: "[INFO] ",
+            logging.WARNING: "[WARN] ",
+            logging.ERROR: "[ERROR] ",
+            logging.CRITICAL: "[FATAL] ",
         }
         COLORS = {
             logging.DEBUG: "\033[36m",
@@ -550,34 +550,34 @@ class PDFEmbedTUI(App):
 
     async def _select_files(self) -> None:
         log = self.query_one(Log)
-        log.write_line("? Opening file dialog")
+        log.write_line("Opening file dialog")
         try:
             paths = await asyncio.to_thread(self._open_file_dialog)
         except Exception as e:
-            log.write_line(f"?? Failed to open file dialog: {e}")
+            log.write_line(f"Failed to open file dialog: {e}")
             return
         if not paths:
-            log.write_line("?? Selection was cancelled.")
+            log.write_line("Selection was cancelled.")
             return
         self.selected_files = [Path(p).resolve() for p in paths]
         log.clear()
         for p in self.selected_files:
-            log.write_line(f"? Selected: {p}")
+            log.write_line(f"Selected: {p}")
         self._update_status_label()
 
     async def _select_output_dir(self) -> None:
         log = self.query_one(Log)
-        log.write_line("? Opening output folder dialog")
+        log.write_line("Opening output folder dialog")
         try:
             selected = await asyncio.to_thread(self._open_dir_dialog)
         except Exception as e:
-            log.write_line(f"?? Failed to open folder dialog: {e}")
+            log.write_line(f"Failed to open folder dialog: {e}")
             return
         if selected:
             self.output_dir = Path(selected).resolve()
             log.write_line(f"Output: {self.output_dir}")
         else:
-            log.write_line("?? Selection was cancelled.")
+            log.write_line("Selection was cancelled.")
         self._update_status_label()
 
     def _open_file_dialog(self):
@@ -602,14 +602,14 @@ class PDFEmbedTUI(App):
         # DPI is fixed in TUI (change via --cli)
 
         if not self.selected_files:
-            log.write_line("?? No PDFs selected.")
+            log.write_line("No PDFs selected.")
             return
 
         output_dir = self.output_dir or self.selected_files[0].parent
         output_dir.mkdir(parents=True, exist_ok=True)
         font_path = resolve_font_path(str(self.font_path))
 
-        log.write_line(f"?? Start (DPI={self.dpi}, visible={self.visible})")
+        log.write_line(f"Start (DPI={self.dpi}, visible={self.visible})")
 
         def run_batch():
             return process_multiple_pdfs(
@@ -623,11 +623,11 @@ class PDFEmbedTUI(App):
         result = await asyncio.to_thread(run_batch)
 
         if result.failed:
-            log.write_line(f"?? Failed: {len(result.failed)} file(s)")
+            log.write_line(f"Failed: {len(result.failed)} file(s)")
             for ip, msg in result.failed:
                 log.write_line(f"  - {ip} -> {msg}")
         if result.completed:
-            log.write_line(f"? Success: {len(result.completed)} file(s)")
+            log.write_line(f"... Success: {len(result.completed)} file(s)")
             for p in result.completed:
                 log.write_line(f"  - {p}")
         self._update_status_label()
