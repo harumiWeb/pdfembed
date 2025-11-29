@@ -2,6 +2,8 @@
 
 CLI/TUI tool to run OCR locally and overlay a searchable text layer on PDFs. By default, a Textual-based TUI launches; use `--cli` for the classic CLI.
 
+License: BSD-3-Clause (see `LICENSE`).
+
 ### Quickstart
 
 - TUI (default):  

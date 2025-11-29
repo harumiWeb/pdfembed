@@ -1,11 +1,12 @@
 [project]
 name = "pdfembed"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI/TUI tool to run OCR locally and overlay a searchable text layer on PDFs."
 readme = "README.md"
 authors = [
     { name = "harumiWeb", email = "ganaharumi@outlook.jp" }
 ]
+license = { text = "BSD-3-Clause" }
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.26.4",
