@@ -516,6 +516,7 @@ class PDFEmbedTUI(App):
         self.font_path = font_path
         self.visible = False
         self.dpi = 300
+        self.processing = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -524,6 +525,7 @@ class PDFEmbedTUI(App):
             with Container(id="controls"):
                 yield Label(f"DPI: {self.dpi} (change with --cli option)", id="dpi_label")
                 yield Label("Visible text: OFF [V]", id="visible_status")
+                yield Label("", id="processing_status")
             yield Label("Selected files (F: choose, O: output, S: start):", id="files_label")
             yield Log(id="log")
         yield Footer()
@@ -536,15 +538,23 @@ class PDFEmbedTUI(App):
         self._update_status_label()
 
     async def action_select_files(self) -> None:
+        if self.processing:
+            return
         await self._select_files()
 
     async def action_select_output(self) -> None:
+        if self.processing:
+            return
         await self._select_output_dir()
 
     async def action_start_ocr(self) -> None:
+        if self.processing:
+            return
         await self._start_ocr()
 
     async def action_toggle_visible(self) -> None:
+        if self.processing:
+            return
         self.visible = not self.visible
         self._update_visible_label()
 
@@ -610,6 +620,7 @@ class PDFEmbedTUI(App):
         font_path = resolve_font_path(str(self.font_path))
 
         log.write_line(f"Start (DPI={self.dpi}, visible={self.visible})")
+        self._set_processing(True)
 
         def run_batch():
             return process_multiple_pdfs(
@@ -620,17 +631,20 @@ class PDFEmbedTUI(App):
                 visible=self.visible,
             )
 
-        result = await asyncio.to_thread(run_batch)
+        try:
+            result = await asyncio.to_thread(run_batch)
 
-        if result.failed:
-            log.write_line(f"Failed: {len(result.failed)} file(s)")
-            for ip, msg in result.failed:
-                log.write_line(f"  - {ip} -> {msg}")
-        if result.completed:
-            log.write_line(f"... Success: {len(result.completed)} file(s)")
-            for p in result.completed:
-                log.write_line(f"  - {p}")
-        self._update_status_label()
+            if result.failed:
+                log.write_line(f"Failed: {len(result.failed)} file(s)")
+                for ip, msg in result.failed:
+                    log.write_line(f"  - {ip} -> {msg}")
+            if result.completed:
+                log.write_line(f"Success: {len(result.completed)} file(s)")
+                for p in result.completed:
+                    log.write_line(f"  - {p}")
+            self._update_status_label()
+        finally:
+            self._set_processing(False)
 
     def action_quit(self) -> None:
         self.exit()
@@ -645,6 +659,11 @@ class PDFEmbedTUI(App):
         output_dir = self.output_dir or (self.selected_files[0].parent if self.selected_files else Path("-"))
         status = f"Files: {files_count} | Output: {output_dir}"
         self.query_one("#files_label", Label).update(status)
+
+    def _set_processing(self, active: bool) -> None:
+        self.processing = active
+        label = self.query_one("#processing_status", Label)
+        label.update("Processing... please wait" if active else "")
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
